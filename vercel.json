@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "name": "ner-admin-console",
+  "name": "ner-smart-admin-hub",
   "builds": [
     { "src": "index.html", "use": "@vercel/static" }
   ],
