@@ -1,0 +1,12 @@
+{
+  "name": "ner-admin-console",
+  "version": "1.0.0",
+  "description": "NER Smart Logistics Admin Tactical Command Center - Excellent & Crazy",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": ["logistics", "admin-console", "3d-radar", "flir-thermal"],
+  "author": "NER Smart Logistics",
+  "license": "MIT"
+}

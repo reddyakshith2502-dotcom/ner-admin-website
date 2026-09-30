@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NER SMART LOGISTICS // TACTICAL ADMIN COMMAND CENTER</title>
+    
+    <!-- GOOGLE FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- LEAFLET MAP CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        :root {
+            --bg-deep: #030712;
+            --bg-panel: rgba(11, 18, 33, 0.95);
+            --glass-border: rgba(52, 211, 153, 0.35);
+            --neon-green: #34d399;
+            --neon-cyan: #38bdf8;
+            --neon-amber: #fbbf24;
+            --neon-red: #ef4444;
+            --neon-purple: #c084fc;
+            --text-main: #f8fafc;
+            --font-head: 'Outfit', sans-serif;
+            --font-data: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; outline: none; margin: 0; padding: 0; }
+        
+        html, body {
+            height: 100%; width: 100%;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font-head);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #bg-canvas-admin {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+            pointer-events: none;
+        }
+
+        .cyber-grid-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at 75% 25%, rgba(52, 211, 153, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 25% 75%, rgba(56, 189, 248, 0.1) 0%, transparent 60%),
+                linear-gradient(rgba(3, 7, 18, 0.94), rgba(3, 7, 18, 0.97));
+        }
+
+        #app-wrapper {
+            display: flex; min-height: 100vh; width: 100vw;
+            position: relative; z-index: 10;
+        }
+
+        /* SIDE NAVIGATION BAR */
+        #side-nav {
+            width: 290px; min-width: 290px; height: 100vh; position: sticky; top: 0;
+            background: rgba(6, 12, 26, 0.98);
+            backdrop-filter: blur(25px);
+            border-right: 2px solid var(--glass-border);
+            display: flex; flex-direction: column;
+            padding: 24px 18px; gap: 14px;
+            z-index: 100;
+            box-shadow: 12px 0 40px rgba(0, 0, 0, 0.7);
+        }
+
+        .brand-block {
+            padding: 0 4px 18px;
+            border-bottom: 2px solid var(--glass-border);
+            margin-bottom: 8px;
+        }
+        .brand-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-family: var(--font-data); font-size: 10px; font-weight: 800;
+            color: var(--neon-green); background: rgba(52, 211, 153, 0.15);
+            border: 1px solid var(--neon-green); border-radius: 4px;
+            padding: 4px 8px; margin-bottom: 8px; letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+        .brand-title {
+            font-size: 25px; font-weight: 900; line-height: 1.15; margin: 4px 0; letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #34d399 50%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-transform: uppercase;
+        }
+
+        .nav-tab {
+            width: 100%; border: 1.5px solid transparent; background: rgba(255, 255, 255, 0.03);
+            color: #cbd5e1; font-family: var(--font-head); font-weight: 800; font-size: 13.5px;
+            padding: 13px 15px; border-radius: 10px; cursor: pointer;
+            display: flex; align-items: center; gap: 12px; text-transform: uppercase;
+            letter-spacing: 0.5px; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-tab .nav-icon { font-size: 20px; }
+        .nav-tab:hover {
+            color: #fff; background: rgba(52, 211, 153, 0.15);
+            border-color: var(--neon-green); transform: translateX(5px);
+        }
+        .nav-tab.active {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff; border-color: var(--neon-green);
+            box-shadow: 0 6px 25px rgba(5, 150, 105, 0.5);
+            transform: translateX(5px);
+        }
+
+        /* MAIN CONTENT AREA */
+        #main-content {
+            flex: 1; min-height: 100vh; position: relative; overflow-y: auto;
+            padding: 30px; box-sizing: border-box;
+        }
+
+        .content-view {
+            display: none; animation: fadeIn 0.4s ease;
+        }
+        .content-view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass-panel {
+            background: var(--bg-panel);
+            border: 1.5px solid var(--glass-border);
+            border-radius: 16px; padding: 28px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+            margin-bottom: 24px;
+        }
+
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 22px; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 16px; flex-wrap: wrap; gap: 12px;
+        }
+        .panel-title {
+            font-size: 24px; font-weight: 900; color: #fff; text-transform: uppercase;
+            letter-spacing: 0.8px; display: flex; align-items: center; gap: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #34d399 60%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        /* METRIC CARDS TOP BAR */
+        .metrics-bar {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;
+        }
+        .metric-card {
+            background: rgba(15, 23, 42, 0.85); border: 1.5px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 6px;
+        }
+        .m-lbl { font-family: var(--font-data); font-size: 11px; color: var(--neon-cyan); font-weight: 800; text-transform: uppercase; }
+        .m-val { font-size: 28px; font-weight: 900; color: #fff; }
+        .m-sub { font-size: 11px; color: #94a3b8; font-family: var(--font-data); }
+
+        /* CYBER FILTER TABS */
+        .filter-tabs {
+            display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap;
+            background: rgba(3, 7, 18, 0.8); padding: 6px; border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .filter-btn {
+            border: none; background: transparent; color: #94a3b8;
+            font-family: var(--font-head); font-weight: 800; font-size: 13px;
+            padding: 10px 18px; cursor: pointer; text-transform: uppercase; border-radius: 8px;
+            transition: all 0.25s ease; display: flex; align-items: center; gap: 8px;
+        }
+        .filter-btn.active {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #fff; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.4);
+        }
+        .filter-btn:hover:not(.active) { color: #fff; background: rgba(255, 255, 255, 0.08); }
+
+        /* ADVANCED VEHICLE TELEMATICS CARDS GRID */
+        .telematics-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px;
+        }
+
+        .v-card {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1.5px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px; overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; position: relative;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+        }
+        .v-card:hover {
+            transform: translateY(-6px);
+            border-color: var(--neon-green);
+            box-shadow: 0 15px 40px rgba(52, 211, 153, 0.25);
+        }
+        .v-card.vacant:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 15px 40px rgba(56, 189, 248, 0.25);
+        }
+
+        .v-img-wrap {
+            position: relative; width: 100%; height: 180px; overflow: hidden;
+            background: #020617;
+        }
+        .v-img {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+        .v-card:hover .v-img { transform: scale(1.06); }
+
+        .v-status-badge {
+            position: absolute; top: 12px; right: 12px;
+            font-family: var(--font-data); font-size: 10px; font-weight: 800;
+            padding: 5px 10px; border-radius: 6px; text-transform: uppercase;
+            letter-spacing: 0.5px; backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .status-work { background: rgba(52, 211, 153, 0.85); color: #000; border: 1px solid var(--neon-green); }
+        .status-vacant { background: rgba(56, 189, 248, 0.85); color: #000; border: 1px solid var(--neon-cyan); }
+        .status-mission { background: rgba(251, 191, 36, 0.9); color: #000; border: 1px solid var(--neon-amber); }
+
+        .v-body { padding: 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        .v-title-row { display: flex; justify-content: space-between; align-items: baseline; }
+        .v-title { font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 0.5px; }
+        .v-role { font-size: 12px; color: var(--neon-cyan); font-family: var(--font-data); font-weight: 700; }
+
+        .v-metrics-table {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            background: rgba(3, 7, 18, 0.7); padding: 12px; border-radius: 8px;
+            font-family: var(--font-data); font-size: 11px; margin-top: 4px;
+        }
+        .m-item { display: flex; flex-direction: column; gap: 2px; }
+        .m-item span.lbl { color: #94a3b8; font-size: 10px; text-transform: uppercase; }
+        .m-item span.val { color: #fff; font-weight: 700; }
+
+        .fuel-bar-wrap { width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+        .fuel-bar-fill { height: 100%; background: linear-gradient(90deg, #059669, #34d399); border-radius: 3px; }
+
+        .v-btn-inspect {
+            width: 100%; border: none; padding: 10px; border-radius: 6px;
+            background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff; font-family: var(--font-head); font-weight: 800; font-size: 12px;
+            text-transform: uppercase; cursor: pointer; transition: all 0.25s; margin-top: auto;
+        }
+        .v-card:hover .v-btn-inspect { background: var(--neon-green); color: #000; font-weight: 900; }
+        .v-card.vacant:hover .v-btn-inspect { background: var(--neon-cyan); color: #000; font-weight: 900; }
+
+        /* RADAR & THERMAL CANVAS */
+        #radar-container {
+            position: relative; width: 100%; height: 260px;
+            background: rgba(3, 7, 18, 0.95); border: 1.5px solid var(--neon-green);
+            border-radius: 12px; overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(52, 211, 153, 0.2);
+        }
+        #thermal-canvas {
+            width: 100%; height: 380px; background: #000; border-radius: 12px;
+            border: 2px solid var(--neon-amber); box-shadow: 0 0 30px rgba(251, 191, 36, 0.25);
+            display: block;
+        }
+
+        /* SLIDERS FOR AI RISK SIMULATOR */
+        .slider-group { margin-bottom: 20px; }
+        .slider-group label {
+            display: flex; justify-content: space-between; font-family: var(--font-data);
+            font-size: 12px; color: var(--neon-green); font-weight: 700; margin-bottom: 8px;
+        }
+        .slider-control {
+            width: 100%; -webkit-appearance: none; appearance: none; height: 8px;
+            background: rgba(255, 255, 255, 0.1); border-radius: 4px; outline: none;
+        }
+        .slider-control::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 20px; height: 20px;
+            border-radius: 50%; background: var(--neon-green); cursor: pointer;
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        /* TERMINAL LOG CONSOLE */
+        .terminal-box {
+            background: #020617; border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px; padding: 18px; font-family: var(--font-data);
+            font-size: 12px; color: #34d399; height: 260px; overflow-y: auto;
+            line-height: 1.6; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .action-btn {
+            border: none; padding: 14px 22px;
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff; font-family: var(--font-head); font-weight: 800; font-size: 14px;
+            text-transform: uppercase; letter-spacing: 1px; border-radius: 10px;
+            cursor: pointer; transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(5, 150, 105, 0.4);
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .action-btn:hover { background: linear-gradient(135deg, #34d399, #059669); transform: translateY(-2px); box-shadow: 0 6px 25px rgba(52, 211, 153, 0.6); }
+
+        /* MODAL INSPECTION DIALOG */
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(3, 7, 18, 0.85); backdrop-filter: blur(14px);
+            align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.active { display: flex; animation: fadeIn 0.3s ease; }
+        .modal-card {
+            background: rgba(13, 18, 28, 0.96); border: 2px solid var(--neon-green);
+            border-radius: 16px; width: 100%; max-width: 580px; padding: 26px;
+            box-shadow: 0 20px 60px rgba(52, 211, 153, 0.3); color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas-admin"></canvas>
+    <div class="cyber-grid-overlay"></div>
+
+    <div id="app-wrapper">
+        
+        <!-- SIDE NAVIGATION BAR -->
+        <nav id="side-nav">
+            <div class="brand-block">
+                <div class="brand-badge"><span>⚡</span> TACTICAL DISPATCH</div>
+                <div class="brand-title">ADMIN CONSOLE</div>
+                <div style="font-size:11px; color:var(--neon-green); font-family:var(--font-data); font-weight:800;">COMMAND HUD v5.0</div>
+            </div>
+
+            <button class="nav-tab active" onclick="switchAdminTab('fleet')" id="atab-fleet">
+                <span class="nav-icon">🚛</span> Vehicles &amp; Drones Telematics
+            </button>
+            <button class="nav-tab" onclick="switchAdminTab('radar')" id="atab-radar">
+                <span class="nav-icon">🛰️</span> 3D Spatial Radar Sweep
+            </button>
+            <button class="nav-tab" onclick="switchAdminTab('ai')" id="atab-ai">
+                <span class="nav-icon">🤖</span> AI Disaster Risk Matrix
+            </button>
+            <button class="nav-tab" onclick="switchAdminTab('dispatch')" id="atab-dispatch">
+                <span class="nav-icon">🎮</span> Remote Dispatch Controls
+            </button>
+            <button class="nav-tab" onclick="switchAdminTab('thermal')" id="atab-thermal">
+                <span class="nav-icon">📹</span> VTOL Drone FLIR Camera
+            </button>
+            <button class="nav-tab" onclick="switchAdminTab('terminal')" id="atab-terminal">
+                <span class="nav-icon">💻</span> Operations Terminal
+            </button>
+        </nav>
+
+        <!-- MAIN CONTENT AREA -->
+        <main id="main-content">
+            
+            <!-- TOP METRICS SUMMARY -->
+            <div class="metrics-bar">
+                <div class="metric-card">
+                    <span class="m-lbl">TOTAL FLEET MONITORED</span>
+                    <span class="m-val">15 UNITS</span>
+                    <span class="m-sub">5 In Work + 4 Vacant + 6 Drones</span>
+                </div>
+                <div class="metric-card">
+                    <span class="m-lbl">ON-ROAD ACTIVE CONVOYS</span>
+                    <span class="m-val" style="color:var(--neon-green);">5 IN WORK</span>
+                    <span class="m-sub">Cold-Chain Vaccines, O₂, Food, Solar, Oil</span>
+                </div>
+                <div class="metric-card">
+                    <span class="m-lbl">VACANT / STANDBY HUBS</span>
+                    <span class="m-val" style="color:var(--neon-cyan);">4 READY</span>
+                    <span class="m-sub">Guwahati, Shillong, Agartala Depots</span>
+                </div>
+                <div class="metric-card">
+                    <span class="m-lbl">COLD-CHAIN MONITOR</span>
+                    <span class="m-val" style="color:var(--neon-green);">-182.4°C / 4.1°C</span>
+                    <span class="m-sub">Cryogenic O₂ &amp; Vaccine Integrity 100%</span>
+                </div>
+            </div>
+
+            <!-- VIEW 1: ADVANCED VEHICLES & DRONES TELEMATICS WITH REAL PHOTOS -->
+            <div id="aview-fleet" class="content-view active">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="panel-title"><span style="font-size:26px;">🚛</span> Northeast Vehicles &amp; Drones Telematics Command</div>
+                            <div style="font-size:12px; color:var(--text-muted); font-family:var(--font-data); margin-top:4px;">
+                                MONITORING ALL 15 UNITS: ACTIVE CONVOYS ON ROAD ("IN WORK"), STANDBY UNITS ("VACANT"), AND AERIAL VTOL DRONES.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FILTER TABS -->
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" onclick="filterFleet('all')" id="flt-all">⚡ All Fleet Units (15)</button>
+                        <button class="filter-btn" onclick="filterFleet('work')" id="flt-work">🚚 In Work / On Road (5)</button>
+                        <button class="filter-btn" onclick="filterFleet('vacant')" id="flt-vacant">🅿️ Vacant &amp; Standby (4)</button>
+                        <button class="filter-btn" onclick="filterFleet('drone')" id="flt-drone">🛸 Aerial Drones (6)</button>
+                    </div>
+
+                    <!-- TELEMATICS CARDS GRID -->
+                    <div id="fleet-grid" class="telematics-grid">
+                        
+                        <!-- UNIT 1: AS-01-EC-9082 (IN WORK) -->
+                        <div class="v-card work" data-type="work">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Cold Chain Vaccine Truck">
+                                <span class="v-status-badge status-work">● IN WORK / ON ROAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🚚 AS-01-EC-9082</div>
+                                    <div class="v-role">Assam Medical Hub</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: 5,000 Doses Cold-Chain Vaccines</div>
+                                <div style="font-size:12px; color:#cbd5e1;">🗺️ ROUTE: Guwahati Cargo Depot → NEIGRIHMS Shillong</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">Rajeswar Das</span></div>
+                                    <div class="m-item"><span class="lbl">SPEED / ETA</span><span class="val" style="color:var(--neon-green);">46 km/h (1h 15m)</span></div>
+                                    <div class="m-item"><span class="lbl">COLD TEMP</span><span class="val" style="color:var(--neon-cyan);">4.1°C (SAFE)</span></div>
+                                    <div class="m-item"><span class="lbl">CORRIDOR</span><span class="val" style="color:var(--neon-green);">NH-6 Shillong Pass</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 88%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('AS-01-EC-9082', 'Assam Medical Cold-Chain Truck', 'IN WORK / ON ROAD', 'Guwahati Depot → NEIGRIHMS Shillong', '46 km/h', '4.1°C', 'Rajeswar Das', '88% Fuel', 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80')">Inspect Full Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 2: AS-01-OX-4011 (IN WORK) -->
+                        <div class="v-card work" data-type="work">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Liquid Oxygen Tanker">
+                                <span class="v-status-badge status-work">● IN WORK / ON ROAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">❄️ AS-01-OX-4011</div>
+                                    <div class="v-role">Northeast Oxygen Supply</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Liquid Medical Oxygen (18T Cryogenic)</div>
+                                <div style="font-size:12px; color:#cbd5e1;">🗺️ ROUTE: Numaligarh O₂ Plant → GMCH Guwahati</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">Biren Sarma</span></div>
+                                    <div class="m-item"><span class="lbl">SPEED / ETA</span><span class="val" style="color:var(--neon-green);">54 km/h (2h 10m)</span></div>
+                                    <div class="m-item"><span class="lbl">CRYO TEMP</span><span class="val" style="color:var(--neon-cyan);">-182.4°C (CRYOGENIC)</span></div>
+                                    <div class="m-item"><span class="lbl">CORRIDOR</span><span class="val" style="color:var(--neon-green);">NH-27 Nagaon Express</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 94%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('AS-01-OX-4011', 'Liquid Medical Oxygen Tanker', 'IN WORK / ON ROAD', 'Numaligarh O₂ Plant → GMCH Guwahati', '54 km/h', '-182.4°C', 'Biren Sarma', '94% Fuel', 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80')">Inspect Full Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 3: NL-01-FC-7721 (IN WORK) -->
+                        <div class="v-card work" data-type="work">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=600&q=80" class="v-img" alt="FCI Food Grain Truck">
+                                <span class="v-status-badge status-mission">⚠️ IN WORK / HAZARD ESCORT</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🌾 NL-01-FC-7721</div>
+                                    <div class="v-role">FCI Essential Commodities</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Essential Food Grains (24T Rice &amp; Wheat)</div>
+                                <div style="font-size:12px; color:#cbd5e1;">🗺️ ROUTE: Dimapur Depot → Imphal FCI Storage</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">K. Naga</span></div>
+                                    <div class="m-item"><span class="lbl">SPEED / ETA</span><span class="val" style="color:var(--neon-amber);">38 km/h (4h 30m)</span></div>
+                                    <div class="m-item"><span class="lbl">CARGO TEMP</span><span class="val">24.5°C</span></div>
+                                    <div class="m-item"><span class="lbl">CORRIDOR</span><span class="val" style="color:var(--neon-amber);">NH-2 Kohima Pass</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 76%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NL-01-FC-7721', 'FCI Essential Food Grains Convoy', 'IN WORK / HAZARD ESCORT', 'Dimapur Depot → Imphal FCI Storage', '38 km/h', '24.5°C', 'K. Naga', '76% Fuel', 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=600&q=80')">Inspect Full Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 4: TR-01-GC-3019 (IN WORK) -->
+                        <div class="v-card work" data-type="work">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Solar Freight Truck">
+                                <span class="v-status-badge status-work">● IN WORK / ON ROAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">☀️ TR-01-GC-3019</div>
+                                    <div class="v-role">Tripura Infrastructure</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Solar Power Panels &amp; Grid Equipment</div>
+                                <div style="font-size:12px; color:#cbd5e1;">🗺️ ROUTE: Silchar Freight Yard → Agartala Park</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">Suman Deb</span></div>
+                                    <div class="m-item"><span class="lbl">SPEED / ETA</span><span class="val" style="color:var(--neon-green);">52 km/h (3h 45m)</span></div>
+                                    <div class="m-item"><span class="lbl">CONDITION</span><span class="val" style="color:var(--neon-green);">CLEAR HIGHWAY</span></div>
+                                    <div class="m-item"><span class="lbl">CORRIDOR</span><span class="val" style="color:var(--neon-green);">NH-8 Agartala Sector</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 82%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('TR-01-GC-3019', 'Solar Infrastructure Freight', 'IN WORK / ON ROAD', 'Silchar Freight Yard → Agartala Park', '52 km/h', 'N/A', 'Suman Deb', '82% Fuel', 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=600&q=80')">Inspect Full Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 5: AS-09-PL-8834 (IN WORK) -->
+                        <div class="v-card work" data-type="work">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Indian Oil Petroleum Tanker">
+                                <span class="v-status-badge status-work">● IN WORK / ON ROAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">⛽ AS-09-PL-8834</div>
+                                    <div class="v-role">Indian Oil Energy Carrier</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Petroleum Fuel (20 KL High Octane)</div>
+                                <div style="font-size:12px; color:#cbd5e1;">🗺️ ROUTE: Numaligarh Refinery → Itanagar Depot</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">G. Gogoi</span></div>
+                                    <div class="m-item"><span class="lbl">SPEED / ETA</span><span class="val" style="color:var(--neon-green);">58 km/h (3h 15m)</span></div>
+                                    <div class="m-item"><span class="lbl">TANK PRESSURE</span><span class="val" style="color:var(--neon-green);">2.4 BAR (SAFE)</span></div>
+                                    <div class="m-item"><span class="lbl">CORRIDOR</span><span class="val" style="color:var(--neon-green);">NH-415 Foothills</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 90%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('AS-09-PL-8834', 'Indian Oil Petroleum Tanker', 'IN WORK / ON ROAD', 'Numaligarh Refinery → Itanagar Depot', '58 km/h', '2.4 BAR', 'G. Gogoi', '90% Fuel', 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=600&q=80')">Inspect Full Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 6: AS-01-MR-1002 (VACANT / STANDBY) -->
+                        <div class="v-card vacant" data-type="vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Mountain Rescue Truck">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT HUB</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🚜 AS-01-MR-1002</div>
+                                    <div class="v-role">Guwahati Central Hub</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Unloaded (Heavy Winch &amp; Rescue Gear)</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 LOCATION: Guwahati Central Transport Depot</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER / PILOT</span><span class="val">B. Borah (Standby)</span></div>
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">READY TO DISPATCH</span></div>
+                                    <div class="m-item"><span class="lbl">MAINTENANCE</span><span class="val" style="color:var(--neon-green);">100% OPTIMAL</span></div>
+                                    <div class="m-item"><span class="lbl">FUEL LEVEL</span><span class="val" style="color:var(--neon-cyan);">100% FULL</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 100%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('AS-01-MR-1002', 'Heavy 4x4 Mountain Rescue Truck', 'VACANT / STANDBY AT HUB', 'Guwahati Central Hub (Standby)', '0 km/h', 'N/A', 'B. Borah', '100% Fuel', 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Dispatch Unit</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 7: ML-05-CC-4099 (VACANT / STANDBY) -->
+                        <div class="v-card vacant" data-type="vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Backup Cold Chain Van">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT HUB</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🚐 ML-05-CC-4099</div>
+                                    <div class="v-role">Shillong Medical Hub</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Empty Cold Storage Chamber</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 LOCATION: NEIGRIHMS Shillong Depot</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER / PILOT</span><span class="val">K. Lyngdoh (Standby)</span></div>
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">READY TO DISPATCH</span></div>
+                                    <div class="m-item"><span class="lbl">FREEZER TEMP</span><span class="val" style="color:var(--neon-green);">-20.0°C PRE-COOLED</span></div>
+                                    <div class="m-item"><span class="lbl">FUEL LEVEL</span><span class="val" style="color:var(--neon-cyan);">95% FULL</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 95%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('ML-05-CC-4099', 'Backup Cold-Chain Van', 'VACANT / STANDBY AT HUB', 'Shillong Hub (Standby)', '0 km/h', '-20.0°C', 'K. Lyngdoh', '95% Fuel', 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Dispatch Unit</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 8: AS-01-ICU-88 (VACANT / STANDBY) -->
+                        <div class="v-card vacant" data-type="vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1587745416684-47953f16f02f?auto=format&fit=crop&w=600&q=80" class="v-img" alt="ICU Ambulance">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT HUB</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🚑 AS-01-ICU-88</div>
+                                    <div class="v-role">GMCH Emergency Base</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Cardiac ICU Mobile Suite</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 LOCATION: GMCH Hospital Bay (Guwahati)</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">PARAMEDIC</span><span class="val">Dr. P. Kalita</span></div>
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">ON CALL STANDBY</span></div>
+                                    <div class="m-item"><span class="lbl">OXYGEN CYL</span><span class="val" style="color:var(--neon-green);">100% PRESSURE</span></div>
+                                    <div class="m-item"><span class="lbl">FUEL LEVEL</span><span class="val" style="color:var(--neon-cyan);">100% FULL</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 100%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('AS-01-ICU-88', 'Advanced ICU Ambulance', 'VACANT / STANDBY AT HUB', 'GMCH Guwahati Base', '0 km/h', 'ICU READY', 'Dr. P. Kalita', '100% Fuel', 'https://images.unsplash.com/photo-1587745416684-47953f16f02f?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Dispatch Unit</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 9: TR-02-HT-5501 (VACANT / STANDBY) -->
+                        <div class="v-card vacant" data-type="vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Flatbed Heavy Equipment Transporter">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT HUB</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🚛 TR-02-HT-5501</div>
+                                    <div class="v-role">Agartala Heavy Hub</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 CARGO: Empty Flatbed Trailer (30T Payload Capacity)</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 LOCATION: Agartala Border Freight Yard</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">DRIVER</span><span class="val">R. Roy (Standby)</span></div>
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">READY TO DISPATCH</span></div>
+                                    <div class="m-item"><span class="lbl">HYDRAULICS</span><span class="val" style="color:var(--neon-green);">INSPECTED</span></div>
+                                    <div class="m-item"><span class="lbl">FUEL LEVEL</span><span class="val" style="color:var(--neon-cyan);">90% FULL</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 90%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('TR-02-HT-5501', 'Flatbed Heavy Equipment Transporter', 'VACANT / STANDBY AT HUB', 'Agartala Freight Yard', '0 km/h', 'N/A', 'R. Roy', '90% Fuel', 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Dispatch Unit</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 10: NER-DRONE-01 (ACTIVE DRONE) -->
+                        <div class="v-card drone" data-type="drone">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=600&q=80" class="v-img" alt="VTOL Rescue Drone">
+                                <span class="v-status-badge status-mission">🛸 ON MISSION / AIRBORNE</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-01</div>
+                                    <div class="v-role">SkyLifter VTOL Heavy</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: Anti-Venom &amp; Blood Pod (15 kg)</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 SECTOR: Sikkim Nathu La Pass (12,500 FT)</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">PILOT / AI</span><span class="val">AUTONOMOUS-X8</span></div>
+                                    <div class="m-item"><span class="lbl">AIR SPEED</span><span class="val" style="color:var(--neon-cyan);">120 km/h</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val" style="color:var(--neon-amber);">12,500 FT</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">88% CHARGED</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 88%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-01', 'SkyLifter VTOL Heavy Rescue Drone', 'ON MISSION / AIRBORNE', 'Nathu La Sector 4 (12,500 ft)', '120 km/h', '12,500 FT', 'AUTONOMOUS-X8', '88% Battery', 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=600&q=80')">Inspect Drone Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 11: NER-DRONE-02 (ACTIVE DRONE) -->
+                        <div class="v-card drone" data-type="drone">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80" class="v-img" alt="FLIR Thermal SAR Drone">
+                                <span class="v-status-badge status-mission">🛸 ON MISSION / FLIR LOCK</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-02</div>
+                                    <div class="v-role">HawkEye 4K FLIR Thermal</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: Thermal Sensor &amp; 4K Optical SAR Camera</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 SECTOR: Sela Pass Ridge (14,000 FT)</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">PILOT / AI</span><span class="val">THERMAL-SAR-AI</span></div>
+                                    <div class="m-item"><span class="lbl">AIR SPEED</span><span class="val" style="color:var(--neon-cyan);">95 km/h</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val" style="color:var(--neon-amber);">14,000 FT</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">94% CHARGED</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 94%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-02', 'HawkEye 4K FLIR Thermal SAR Drone', 'ON MISSION / FLIR LOCK', 'Sela Pass Ridge (14,000 ft)', '95 km/h', '14,000 FT', 'THERMAL-SAR-AI', '94% Battery', 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80')">Inspect Drone Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 12: NER-DRONE-03 (ACTIVE DRONE) -->
+                        <div class="v-card drone" data-type="drone">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1533558701576-23c65e0272fb?auto=format&fit=crop&w=600&q=80" class="v-img" alt="5G Mesh Relay Drone">
+                                <span class="v-status-badge status-mission">🛸 ON MISSION / 5G RELAY</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-03</div>
+                                    <div class="v-role">Stratospheric 5G Mesh Relay</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: High-Altitude 5G Mesh Comms Transceiver</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 SECTOR: Zuluk Mountain Valley (11,200 FT)</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">PILOT / AI</span><span class="val">COMMS-MESH-NODE</span></div>
+                                    <div class="m-item"><span class="lbl">SIGNAL RELAY</span><span class="val" style="color:var(--neon-green);">100% COVERAGE</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val" style="color:var(--neon-amber);">11,200 FT</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">76% CHARGED</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 76%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-03', 'Stratospheric 5G Mesh Relay Drone', 'ON MISSION / 5G RELAY', 'Zuluk Valley (11,200 ft)', 'HOVER', '11,200 FT', 'COMMS-MESH-NODE', '76% Battery', 'https://images.unsplash.com/photo-1533558701576-23c65e0272fb?auto=format&fit=crop&w=600&q=80')">Inspect Drone Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 13: NER-DRONE-04 (ACTIVE DRONE) -->
+                        <div class="v-card drone" data-type="drone">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Weather LIDAR Drone">
+                                <span class="v-status-badge status-mission">🛸 ON MISSION / WEATHER SCAN</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-04</div>
+                                    <div class="v-role">StormScout Weather LIDAR</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: Atmospheric LIDAR &amp; Cloud Density Sensor</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 SECTOR: Tawang Mountain Heights (15,200 FT)</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">PILOT / AI</span><span class="val">METEO-SCAN-AI</span></div>
+                                    <div class="m-item"><span class="lbl">WIND SCAN</span><span class="val" style="color:var(--neon-cyan);">38 km/h GUSTS</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val" style="color:var(--neon-amber);">15,200 FT</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">91% CHARGED</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 91%;"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-04', 'StormScout Weather LIDAR Drone', 'ON MISSION / WEATHER SCAN', 'Tawang Heights (15,200 ft)', '110 km/h', '15,200 FT', 'METEO-SCAN-AI', '91% Battery', 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80')">Inspect Drone Telemetry</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 14: NER-DRONE-05 (VACANT / STANDBY DRONE) -->
+                        <div class="v-card drone vacant" data-type="drone vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=600&q=80" class="v-img" alt="Cargo Supply Pod Drone">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT PAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-05</div>
+                                    <div class="v-role">AeroCargo Avalanche Pod</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: Empty Cargo Pod (10 kg Capacity)</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 PAD: Gangtok Airbase Helipad</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">CHARGING AT PAD</span></div>
+                                    <div class="m-item"><span class="lbl">AIR SPEED</span><span class="val">0 km/h</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val">GROUND (5,400 FT)</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">100% FULL</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 100%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-05', 'AeroCargo Supply Pod Drone', 'VACANT / STANDBY AT PAD', 'Gangtok Airbase Base Pad', '0 km/h', 'GROUND', 'STANDBY', '100% Battery', 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Launch Drone</button>
+                            </div>
+                        </div>
+
+                        <!-- UNIT 15: NER-DRONE-06 (VACANT / STANDBY DRONE) -->
+                        <div class="v-card drone vacant" data-type="drone vacant">
+                            <div class="v-img-wrap">
+                                <img src="https://images.unsplash.com/photo-1533558701576-23c65e0272fb?auto=format&fit=crop&w=600&q=80" class="v-img" alt="MicroScout 3D Scanner Drone">
+                                <span class="v-status-badge status-vacant">🅿️ VACANT / STANDBY AT PAD</span>
+                            </div>
+                            <div class="v-body">
+                                <div class="v-title-row">
+                                    <div class="v-title">🛸 NER-DRONE-06</div>
+                                    <div class="v-role">MicroScout Terrain 3D</div>
+                                </div>
+                                <div style="font-size:12px; color:#cbd5e1;">📦 PAYLOAD: Laser Altimeter &amp; Slope 3D Scanner</div>
+                                <div style="font-size:12px; color:var(--neon-cyan);">📍 PAD: Cherrapunji Pass Launch Station</div>
+
+                                <div class="v-metrics-table">
+                                    <div class="m-item"><span class="lbl">STATUS</span><span class="val" style="color:var(--neon-cyan);">READY TO DISPATCH</span></div>
+                                    <div class="m-item"><span class="lbl">AIR SPEED</span><span class="val">0 km/h</span></div>
+                                    <div class="m-item"><span class="lbl">ALTITUDE</span><span class="val">GROUND (4,800 FT)</span></div>
+                                    <div class="m-item"><span class="lbl">BATTERY</span><span class="val" style="color:var(--neon-green);">98% CHARGED</span></div>
+                                </div>
+
+                                <div class="fuel-bar-wrap"><div class="fuel-bar-fill" style="width: 98%; background:var(--neon-cyan);"></div></div>
+                                <button class="v-btn-inspect" onclick="inspectModal('NER-DRONE-06', 'MicroScout Terrain 3D Scanner Drone', 'VACANT / STANDBY AT PAD', 'Cherrapunji Station Pad', '0 km/h', 'GROUND', 'STANDBY', '98% Battery', 'https://images.unsplash.com/photo-1533558701576-23c65e0272fb?auto=format&fit=crop&w=600&q=80')">Inspect &amp; Launch Drone</button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: 3D SPATIAL RADAR SWEEP -->
+            <div id="aview-radar" class="content-view">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span style="font-size:26px;">🛰️</span> 3D Spatial WebGL Radar Airspace &amp; Terrain Sweep</div>
+                        <span style="font-size:12px; color:var(--neon-green); font-family:var(--font-data); font-weight:800;">● RADAR SWEEP ACTIVE</span>
+                    </div>
+
+                    <div id="radar-container">
+                        <canvas id="radar-canvas" width="280" height="260"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: AI PREDICTIVE DISASTER RISK MATRIX -->
+            <div id="aview-ai" class="content-view">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span style="font-size:26px;">🤖</span> AI Predictive Landslide &amp; Weather Risk Matrix</div>
+                        <span style="font-size:12px; color:var(--neon-green); font-family:var(--font-data); font-weight:800;">IMD ML ENGINE LOADED</span>
+                    </div>
+
+                    <p style="color:#94a3b8; font-size:14px; margin-bottom:20px;">
+                        Adjust live telemetry parameters to run predictive ML simulations on North East India mountain pass stability:
+                    </p>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:24px; margin-bottom:24px;">
+                        <div class="slider-group">
+                            <label><span>Simulated Rainfall Rate</span> <span id="val-rain">115 mm/hr</span></label>
+                            <input type="range" class="slider-control" min="0" max="300" value="115" id="slide-rain" oninput="updateAISim()">
+                        </div>
+                        <div class="slider-group">
+                            <label><span>Soil Moisture Saturation</span> <span id="val-soil">82 %</span></label>
+                            <input type="range" class="slider-control" min="0" max="100" value="82" id="slide-soil" oninput="updateAISim()">
+                        </div>
+                        <div class="slider-group">
+                            <label><span>River Water Level Surge</span> <span id="val-river">3.2 meters</span></label>
+                            <input type="range" class="slider-control" min="0" max="10" step="0.1" value="3.2" id="slide-river" oninput="updateAISim()">
+                        </div>
+                    </div>
+
+                    <button class="action-btn" onclick="runAIPrediction()" style="width:100%; padding:16px;">
+                        ⚡ Execute AI Landslide Hazard Recalculation
+                    </button>
+
+                    <div id="ai-sim-output" style="margin-top:20px; background:rgba(3,7,18,0.85); border:1.5px solid var(--neon-cyan); border-radius:12px; padding:20px;">
+                        <h4 style="color:var(--neon-cyan); font-size:18px; margin-bottom:10px;">📊 AI LANDSLIDE RISK PREDICTION MATRIX</h4>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px; font-family:var(--font-data); font-size:13px;">
+                            <div>SHILLONG-SILCHAR HAZARD: <strong style="color:var(--neon-red);">CRITICAL (BLOCKED)</strong></div>
+                            <div>NATHU LA SLOPE HAZARD: <strong style="color:var(--neon-amber);">MODERATE RISK</strong></div>
+                            <div>SELA PASS CONVOY HAZARD: <strong style="color:var(--neon-amber);">SNOW ALERT</strong></div>
+                            <div>RECOMMENDED REROUTE: <strong style="color:var(--neon-green);">EXPRESS BYPASS VIA JIRIBAM</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 4: REMOTE DISPATCH CONTROLS -->
+            <div id="aview-dispatch" class="content-view">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span style="font-size:26px;">🎮</span> Remote Fleet Dispatch &amp; Command Controls</div>
+                        <span style="font-size:12px; color:var(--neon-green); font-family:var(--font-data); font-weight:800;">COMMAND OVERRIDE READY</span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:20px;">
+                        <div style="background:rgba(15,23,42,0.85); border:1px solid rgba(255,255,255,0.1); padding:20px; border-radius:12px;">
+                            <h4 style="color:#fff; margin-bottom:10px;">🟢 Emergency Green Wave Override</h4>
+                            <p style="font-size:13px; color:#94a3b8; margin-bottom:16px;">Forces priority green signals across NH-27 and Guwahati Medical Expressway.</p>
+                            <button class="action-btn" onclick="triggerGreenWave()" style="width:100%;">Activate Green Wave</button>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.85); border:1px solid rgba(255,255,255,0.1); padding:20px; border-radius:12px;">
+                            <h4 style="color:#fff; margin-bottom:10px;">🛸 Dispatch Rescue VTOL Drone</h4>
+                            <p style="font-size:13px; color:#94a3b8; margin-bottom:16px;">Launch airborne VTOL drone with medical emergency pod to Nathu La Sector.</p>
+                            <button class="action-btn" onclick="dispatchRescueDrone()" style="width:100%;">Dispatch VTOL Drone</button>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.85); border:1px solid rgba(255,255,255,0.1); padding:20px; border-radius:12px;">
+                            <h4 style="color:#fff; margin-bottom:10px;">🔄 Convoy Automatic Reroute</h4>
+                            <p style="font-size:13px; color:#94a3b8; margin-bottom:16px;">Reroute stuck oxygen tanker around landslide zones.</p>
+                            <button class="action-btn" onclick="triggerReroute()" style="width:100%;">Execute Reroute</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 5: VTOL DRONE FLIR CAMERA -->
+            <div id="aview-thermal" class="content-view">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span style="font-size:26px;">📹</span> VTOL Drone FLIR Thermal SAR Live Feed</div>
+                        <span style="font-size:12px; color:var(--neon-amber); font-family:var(--font-data); font-weight:800;">● THERMAL FLIR LOCK</span>
+                    </div>
+                    <canvas id="thermal-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- VIEW 6: OPERATIONS TERMINAL -->
+            <div id="aview-terminal" class="content-view">
+                <div class="glass-panel">
+                    <div class="panel-header">
+                        <div class="panel-title"><span style="font-size:26px;">💻</span> Operations Terminal &amp; Network Log Console</div>
+                        <span style="font-size:12px; color:var(--neon-green); font-family:var(--font-data); font-weight:800;">STREAMING TELEMETRY</span>
+                    </div>
+                    <div id="term-log" class="terminal-box">
+                        [SYSTEM INIT] NER-NAVIGATE AI Command Center v5.0 initialized.<br>
+                        [FLEET MONITORED] 15 Units Total: 5 In Work + 4 Vacant + 6 Aerial Drones.<br>
+                        [COLD CHAIN] AS-01-EC-9082 Vaccine Pod: 4.1°C (NORMAL)<br>
+                        [COLD CHAIN] AS-01-OX-4011 Cryogenic Tanker: -182.4°C (CRYOGENIC SAFE)<br>
+                        [RADAR] 6 VTOL Drones &amp; 9 Convoys/Trucks transmitting live telemetry.<br>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- FULL TELEMETRY INSPECTION MODAL -->
+    <div id="telemetry-modal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:14px; margin-bottom:14px;">
+                <h3 id="m-id" style="font-size:22px; font-weight:900; color:var(--neon-green);">UNIT TELEMETRY</h3>
+                <button onclick="closeModalDirect()" style="background:none; border:none; color:#aaa; font-size:26px; cursor:pointer;">&times;</button>
+            </div>
+            <img id="m-img" src="" style="width:100%; height:200px; object-fit:cover; border-radius:10px; margin-bottom:16px; border:1.5px solid var(--neon-green);" alt="Vehicle Detail">
+            <div id="m-body" style="font-family:var(--font-data); font-size:13px; line-height:1.6; color:#cbd5e1;"></div>
+            <button class="action-btn" onclick="triggerModalDispatch()" style="width:100%; margin-top:20px;">⚡ Execute Reassignment / Signal Override</button>
+        </div>
+    </div>
+
+    <script>
+        function switchAdminTab(tabId) {
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.content-view').forEach(view => view.classList.remove('active'));
+            
+            document.getElementById(`atab-${tabId}`).classList.add('active');
+            document.getElementById(`aview-${tabId}`).classList.add('active');
+        }
+
+        function filterFleet(category) {
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`flt-${category}`).classList.add('active');
+
+            const cards = document.querySelectorAll('.v-card');
+            cards.forEach(card => {
+                const types = card.getAttribute('data-type') || '';
+                if (category === 'all' || types.includes(category)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function inspectModal(id, title, status, route, speed, temp, driver, fuel, imgUrl) {
+            document.getElementById('m-id').innerText = `${id} — ${title}`;
+            document.getElementById('m-img').src = imgUrl;
+            document.getElementById('m-body').innerHTML = `
+                <div><strong>STATUS:</strong> <span style="color:var(--neon-green);">${status}</span></div>
+                <div><strong>ROUTE / LOCATION:</strong> ${route}</div>
+                <div><strong>SPEED / ALTITUDE:</strong> ${speed}</div>
+                <div><strong>COLD-CHAIN / SENSOR TEMP:</strong> ${temp}</div>
+                <div><strong>ASSIGNED OPERATOR:</strong> ${driver}</div>
+                <div><strong>ENERGY / FUEL LEVEL:</strong> ${fuel}</div>
+                <div style="margin-top:10px; padding:10px; background:rgba(3,7,18,0.7); border-radius:8px;">
+                    <strong>DIAGNOSTICS:</strong> Satellite GPS Lock Active • Engine/Rotor Health: 99.2% • Friction Index: Normal
+                </div>
+            `;
+            document.getElementById('telemetry-modal').classList.add('active');
+        }
+
+        function closeModal(e) {
+            if (e.target.id === 'telemetry-modal') {
+                document.getElementById('telemetry-modal').classList.remove('active');
+            }
+        }
+        function closeModalDirect() {
+            document.getElementById('telemetry-modal').classList.remove('active');
+        }
+        function triggerModalDispatch() {
+            alert('Reassignment command & emergency override transmitted to vehicle telemetry receiver!');
+            closeModalDirect();
+        }
+
+        function updateAISim() {
+            const rain = document.getElementById('slide-rain').value;
+            const soil = document.getElementById('slide-soil').value;
+            const river = document.getElementById('slide-river').value;
+            document.getElementById('val-rain').innerText = `${rain} mm/hr`;
+            document.getElementById('val-soil').innerText = `${soil} %`;
+            document.getElementById('val-river').innerText = `${river} meters`;
+        }
+
+        function runAIPrediction() {
+            appendLog('[AI ML] Landslide risk matrix recalculated. Hazard confidence: 98.4%.');
+            alert('AI ML Recalculation Complete! Optimal bypasses updated for all 15 units.');
+        }
+
+        function triggerGreenWave() {
+            appendLog('[COMMAND] Emergency Green Wave traffic signal override ACTIVATED.');
+            alert('Emergency Green Wave signal clearance activated on NH-27 express route!');
+        }
+
+        function dispatchRescueDrone() {
+            appendLog('[COMMAND] VTOL Drone NER-DRONE-01 dispatched to Nathu La Pass.');
+            alert('VTOL Rescue Drone launched with high-altitude emergency supply pod!');
+        }
+
+        function triggerReroute() {
+            appendLog('[COMMAND] Convoy AS-01-OX-4011 rerouted to Jiribam safe bypass.');
+            alert('Oxygen Tanker AS-01-OX-4011 successfully rerouted around blocked pass!');
+        }
+
+        function appendLog(msg) {
+            const logBox = document.getElementById('term-log');
+            const now = new Date().toLocaleTimeString();
+            logBox.innerHTML += `[${now}] ${msg}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // Radar Sweep
+        const rCanvas = document.getElementById('radar-canvas');
+        const rCtx = rCanvas.getContext('2d');
+        let rAngle = 0;
+        function drawRadar() {
+            const w = rCanvas.width, h = rCanvas.height;
+            const cx = w / 2, cy = h / 2, radius = 110;
+            rCtx.clearRect(0, 0, w, h);
+            rCtx.strokeStyle = 'rgba(52, 211, 153, 0.3)';
+            rCtx.lineWidth = 1;
+            [30, 60, 90, 110].forEach(r => {
+                rCtx.beginPath(); rCtx.arc(cx, cy, r, 0, Math.PI * 2); rCtx.stroke();
+            });
+            rCtx.beginPath(); rCtx.moveTo(cx - radius, cy); rCtx.lineTo(cx + radius, cy); rCtx.stroke();
+            rCtx.beginPath(); rCtx.moveTo(cx, cy - radius); rCtx.lineTo(cx, cy + radius); rCtx.stroke();
+
+            rAngle += 0.03;
+            rCtx.beginPath(); rCtx.moveTo(cx, cy);
+            rCtx.arc(cx, cy, radius, rAngle, rAngle + 0.3);
+            rCtx.fillStyle = 'rgba(52, 211, 153, 0.2)'; rCtx.fill();
+
+            const blips = [
+                { x: cx + 45, y: cy - 30, color: '#38bdf8' },
+                { x: cx - 60, y: cy + 40, color: '#34d399' },
+                { x: cx + 70, y: cy + 50, color: '#fbbf24' }
+            ];
+            blips.forEach(b => {
+                rCtx.beginPath(); rCtx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                rCtx.fillStyle = b.color; rCtx.fill();
+            });
+            requestAnimationFrame(drawRadar);
+        }
+        drawRadar();
+
+        // Thermal FLIR
+        const tCanvas = document.getElementById('thermal-canvas');
+        const tCtx = tCanvas.getContext('2d');
+        function drawThermal() {
+            const w = tCanvas.width = tCanvas.offsetWidth;
+            const h = tCanvas.height = tCanvas.offsetHeight;
+            tCtx.fillStyle = '#0a0d14'; tCtx.fillRect(0, 0, w, h);
+
+            const time = Date.now() * 0.002;
+            const x1 = w * 0.4 + Math.sin(time) * 30;
+            const y1 = h * 0.5 + Math.cos(time) * 20;
+
+            const grad = tCtx.createRadialGradient(x1, y1, 5, x1, y1, 60);
+            grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.3, '#fbbf24');
+            grad.addColorStop(0.7, '#ef4444'); grad.addColorStop(1, 'transparent');
+            tCtx.fillStyle = grad; tCtx.beginPath(); tCtx.arc(x1, y1, 60, 0, Math.PI * 2); tCtx.fill();
+
+            tCtx.strokeStyle = 'rgba(251, 191, 36, 0.8)'; tCtx.lineWidth = 2;
+            tCtx.strokeRect(w / 2 - 80, h / 2 - 60, 160, 120);
+
+            tCtx.font = '12px "JetBrains Mono"'; tCtx.fillStyle = '#fbbf24';
+            tCtx.fillText('TARGET LOCK: VTOL DRONE 02 FLIR', 20, 30);
+            tCtx.fillText('ALTITUDE: 14,000 FT | HEAT TEMP: 37.2°C', 20, 50);
+
+            requestAnimationFrame(drawThermal);
+        }
+        drawThermal();
+
+        // Particles
+        const canvas = document.getElementById('bg-canvas-admin');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        const particles = Array.from({ length: 50 }, () => ({
+            x: Math.random() * width, y: Math.random() * height,
+            radius: Math.random() * 2 + 1,
+            vx: (Math.random() - 0.5) * 0.5, vy: (Math.random() - 0.5) * 0.5,
+            color: 'rgba(52, 211, 153, 0.4)'
+        }));
+
+        function drawParticles() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > width) p.vx *= -1;
+                if (p.y < 0 || p.y > height) p.vy *= -1;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+            });
+            requestAnimationFrame(drawParticles);
+        }
+        drawParticles();
+    </script>
+</body>
+</html>
